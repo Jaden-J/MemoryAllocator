@@ -5,7 +5,7 @@ Last updated: September 2012
 A thread-safe user-level memory allocator using first-fit allocation.
 
 The heap contains free and used blocks. A list of free blocks is used for bookkeeping.
-Free blocks are split and coalesced as needed.
+Free blocks are split and coalesced as memory is allocated and freed, respectively.
 
 The memory allocator implementation is in memalloc.c with supporting code in the pintos 
 directory. The Pintos library (see AUTHORS and LICENSCE for more information) is used 
