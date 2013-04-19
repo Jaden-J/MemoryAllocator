@@ -3,6 +3,7 @@ Project:      MemoryAllocator
 Last updated: September 2012
 -----------------------------
 A thread-safe user-level memory allocator using first-fit allocation.
+Implementations of malloc() and free().
 
 The heap contains free and used blocks. A list of free blocks is used for bookkeeping.
 Free blocks are split and coalesced as memory is allocated and freed, respectively.
