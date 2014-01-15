@@ -19,9 +19,9 @@
 #define ROUNDS          1000    /* 500 rounds of allocation/deallocations each */
 #define NPTRS           256     /* Maintain NPTRS entries in which to store allocated objects. */
 #define ALLOCSIZE       (256*3) /* Allocate objects of size (random() % ALLOCSIZE) */
-#define NTHREADS        5       /* Number of threads using allocator concurrently. */
+#define NTHREADS        10      /* Number of threads using allocator (orgnl 5) concurrently. */
 
-#define MEMSIZE         (1<<16)
+#define MEMSIZE         (2<<16) /* Orgnl (1<<16) 10000b will be 100000b i.e. 32*/
 static long long leftfence;
 static uint8_t memory[MEMSIZE]; /* Area of memory on which allocator works. 2^16 = 64KB */
 static long long rightfence;
@@ -191,6 +191,10 @@ basic_tests()
   return 0;
 }
 
+void *thread_function(void *);
+pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
+int  th_counter = 0;
+
 /*
  * Main program.
  *
@@ -214,20 +218,30 @@ main(int ac, char *av[])
   test_single(0);
   check_free_list_size();
   printf("Test 2 (single-threaded) passed.\n");
-
-  /* Test the memory allocator with NTHREADS concurrent threads. */
-  pthread_t threads[NTHREADS];
-  int i;
-  for (i = 0; i < NTHREADS; i++)
-    if (pthread_create(threads + i, (const pthread_attr_t*)NULL, test_single, (void*)i) == -1)
+  {
+    /* Test the memory allocator with NTHREADS concurrent threads. */
+    pthread_t threads[NTHREADS];
+    printf("Executing %d Threads, please wait\n", NTHREADS);
+    int i;
+    for (i = 0; i < NTHREADS; i++)
       {
-        printf("error creating pthread\n");
-        exit(-1);
+	pthread_create( &threads[i], NULL, thread_function, NULL );
+	if (pthread_create(threads + i, (const pthread_attr_t*)NULL, test_single, (void*)i) == -1)
+	  {
+	    printf("error creating pthread\n");
+	    exit(-1);
+	  }
       }
+    /* Wait for threads to finish. */
+    for (i = 0; i < NTHREADS; i++)
+      pthread_join(threads[i], NULL);
+          
+    /* Now that all threads are complete I can print the final result.     */
+    /* Without the join I could be printing a value before all the threads */
+    /* have been completed.                                                */
 
-  /* Wait for threads to finish. */
-  for (i = 0; i < NTHREADS; i++)
-    pthread_join(threads[i], NULL);
+    printf("Final threads counter value is %d\n", th_counter);
+  }
 
   check_free_list_size();
   printf("Test 3 (with %d threads) passed.\n", NTHREADS);
@@ -238,6 +252,14 @@ main(int ac, char *av[])
   printf("Test 4 (basic functionality) passed.\n");
   return 0;
 }
+
+void *thread_function(void *dummyPtr)
+  {
+    printf("Thread number %ld\n", pthread_self());
+    pthread_mutex_lock( &mutex1 );
+    th_counter++;
+    pthread_mutex_unlock( &mutex1 );
+  }
 
 /* In Pintos, this function is part of the Pintos library.
  * It's used by the ASSERT() macro which is used in list.c.
